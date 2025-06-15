@@ -25,7 +25,7 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/delivery-
   .catch(err => console.error('MongoDB Verbindungsfehler:', err));
 
 // API Routes
-app.use('/api/deliveries', deliveryRoutes);
+app.use('/deliveries', deliveryRoutes);
 
 // WebSocket Verbindung
 io.on('connection', (socket) => {
@@ -61,9 +61,9 @@ const deliveryUpdateMiddleware = (req, res, next) => {
 };
 
 // WebSocket Middleware zu den relevanten Routen hinzufügen
-app.patch('/api/deliveries/:trackingNumber/status', deliveryUpdateMiddleware);
-app.post('/api/deliveries/:trackingNumber/cancel', deliveryUpdateMiddleware);
-app.post('/api/deliveries/:trackingNumber/return', deliveryUpdateMiddleware);
+app.patch('/deliveries/:trackingNumber/status', deliveryUpdateMiddleware);
+app.post('/deliveries/:trackingNumber/cancel', deliveryUpdateMiddleware);
+app.post('/deliveries/:trackingNumber/return', deliveryUpdateMiddleware);
 
 // Basis-Route
 app.get('/', (req, res) => {
