@@ -12,7 +12,12 @@
     "type": "git",
     "url": "git+https://github.com/MihajloIlijic/deliveryApp.git"
   },
-  "keywords": ["delivery", "tracking", "websocket", "rest-api"],
+  "keywords": [
+    "delivery",
+    "tracking",
+    "websocket",
+    "rest-api"
+  ],
   "author": "",
   "license": "ISC",
   "bugs": {
@@ -24,6 +29,7 @@
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
     "mongoose": "^7.0.3",
-    "socket.io": "^4.6.1"
+    "socket.io": "^4.6.1",
+    "websocket": "^1.0.35"
   }
 }

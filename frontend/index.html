@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delivery Tracking</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Delivery Tracking System</h1>
+        </header>
+
+        <main>
+            <!-- Tracking Form -->
+            <section class="tracking-section">
+                <h2>Lieferung verfolgen</h2>
+                <form id="trackingForm">
+                    <input type="text" id="trackingNumber" placeholder="Tracking-Nummer eingeben" required>
+                    <button type="submit">Verfolgen</button>
+                </form>
+            </section>
+
+            <!-- Delivery Details -->
+            <section class="delivery-details" id="deliveryDetails" style="display: none;">
+                <h2>Lieferungsdetails</h2>
+                <div class="status-box">
+                    <h3>Status: <span id="deliveryStatus">-</span></h3>
+                    <div class="status-actions">
+                        <select id="statusSelect">
+                            <option value="sent">Gesendet</option>
+                            <option value="picked_up">Abgeholt</option>
+                            <option value="delivered">Geliefert</option>
+                            <option value="unknown">Unbekannt</option>
+                            <option value="cancelled">Storniert</option>
+                            <option value="returned">Zurückgesendet</option>
+                        </select>
+                        <button id="updateStatusBtn">Status aktualisieren</button>
+                        <button id="cancelDeliveryBtn" class="danger">Lieferung stornieren</button>
+                        <button id="returnDeliveryBtn" class="warning">Lieferung zurücksenden</button>
+                    </div>
+                </div>
+                <div class="details-grid">
+                    <div class="detail-group">
+                        <h4>Absender</h4>
+                        <p id="senderName">-</p>
+                        <p id="senderAddress">-</p>
+                        <p id="senderPhone">-</p>
+                    </div>
+                    <div class="detail-group">
+                        <h4>Empfänger</h4>
+                        <p id="recipientName">-</p>
+                        <p id="recipientAddress">-</p>
+                        <p id="recipientPhone">-</p>
+                    </div>
+                    <div class="detail-group">
+                        <h4>Paket</h4>
+                        <p id="packageWeight">-</p>
+                        <p id="packageDimensions">-</p>
+                        <p id="packageDescription">-</p>
+                    </div>
+                </div>
+                <div class="tracking-history">
+                    <h3>Tracking-Verlauf</h3>
+                    <ul id="trackingHistoryList"></ul>
+                </div>
+            </section>
+
+            <!-- Create Delivery Form -->
+            <section class="create-delivery">
+                <h2>Neue Lieferung erstellen</h2>
+                <form id="createDeliveryForm">
+                    <div class="form-group">
+                        <h3>Absender</h3>
+                        <input type="text" name="senderName" placeholder="Name" required>
+                        <input type="text" name="senderAddress" placeholder="Adresse" required>
+                        <input type="tel" name="senderPhone" placeholder="Telefon" required>
+                        <input type="email" name="senderEmail" placeholder="E-Mail" required>
+                    </div>
+
+                    <div class="form-group">
+                        <h3>Empfänger</h3>
+                        <input type="text" name="recipientName" placeholder="Name" required>
+                        <input type="text" name="recipientAddress" placeholder="Adresse" required>
+                        <input type="tel" name="recipientPhone" placeholder="Telefon" required>
+                        <input type="email" name="recipientEmail" placeholder="E-Mail" required>
+                    </div>
+
+                    <div class="form-group">
+                        <h3>Paket</h3>
+                        <input type="number" name="packageWeight" placeholder="Gewicht (kg)" step="0.1" required>
+                        <div class="dimensions">
+                            <input type="number" name="packageLength" placeholder="Länge (cm)" required>
+                            <input type="number" name="packageWidth" placeholder="Breite (cm)" required>
+                            <input type="number" name="packageHeight" placeholder="Höhe (cm)" required>
+                        </div>
+                        <input type="text" name="packageDescription" placeholder="Beschreibung" required>
+                    </div>
+
+                    <div class="form-group">
+                        <h3>Lieferung</h3>
+                        <input type="datetime-local" name="estimatedDeliveryTime" required>
+                    </div>
+
+                    <button type="submit">Lieferung erstellen</button>
+                </form>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html> 
