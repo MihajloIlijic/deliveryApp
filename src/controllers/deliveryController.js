@@ -1,28 +1,30 @@
 const Delivery = require('../models/Delivery');
 
-// Neue Lieferung erstellen
+function generateTrackingNumber() {
+    const prefix = 'DEL';
+    const random = Math.floor(Math.random() * 1000000000).toString().padStart(9, '0');
+    return `${prefix}${random}`;
+}
+
 exports.createDelivery = async (req, res) => {
-  try {
-    const deliveryData = req.body;
-    deliveryData.trackingNumber = await Delivery.generateTrackingNumber();
-    
-    const delivery = new Delivery(deliveryData);
-    await delivery.save();
+    try {
+        const deliveryData = req.body;
+        deliveryData.trackingNumber = generateTrackingNumber();
+        deliveryData.trackingHistory = [{
+            status: 'sent',
+            timestamp: new Date()
+        }];
 
-    // Füge ersten Tracking-Event hinzu
-    await delivery.addTrackingEvent(
-      'sent',
-      delivery.currentLocation,
-      'Lieferung wurde erstellt'
-    );
+        const delivery = new Delivery(deliveryData);
+        await delivery.save();
 
-    res.status(201).json(delivery);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
+        req.app.locals.broadcastDeliveryUpdate(delivery.trackingNumber, delivery);
+        res.status(201).json(delivery);
+    } catch (error) {
+        res.status(500).json({ message: 'Fehler beim Erstellen der Lieferung', error: error.message });
+    }
 };
 
-// Alle Lieferungen abrufen
 exports.getAllDeliveries = async (req, res) => {
   try {
     const deliveries = await Delivery.find();
@@ -32,94 +34,81 @@ exports.getAllDeliveries = async (req, res) => {
   }
 };
 
-// Einzelne Lieferung anhand der Tracking-Nummer abrufen
-exports.getDeliveryByTrackingNumber = async (req, res) => {
-  try {
-    const delivery = await Delivery.findOne({ trackingNumber: req.params.trackingNumber });
-    if (!delivery) {
-      return res.status(404).json({ message: 'Lieferung nicht gefunden' });
+exports.getDelivery = async (req, res) => {
+    try {
+        const delivery = await Delivery.findOne({ trackingNumber: req.params.trackingNumber });
+        if (!delivery) {
+            return res.status(404).json({ message: 'Lieferung nicht gefunden' });
+        }
+        res.json(delivery);
+    } catch (error) {
+        res.status(500).json({ message: 'Fehler beim Abrufen der Lieferung', error: error.message });
     }
-    res.json(delivery);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
 };
 
-// Lieferungsstatus aktualisieren
 exports.updateDeliveryStatus = async (req, res) => {
-  try {
-    const { trackingNumber } = req.params;
-    const { status, location, description } = req.body;
+    try {
+        const { status } = req.body;
+        const delivery = await Delivery.findOne({ trackingNumber: req.params.trackingNumber });
 
-    const delivery = await Delivery.findOne({ trackingNumber });
-    if (!delivery) {
-      return res.status(404).json({ message: 'Lieferung nicht gefunden' });
+        if (!delivery) {
+            return res.status(404).json({ message: 'Lieferung nicht gefunden' });
+        }
+
+        delivery.status = status;
+        delivery.trackingHistory.push({
+            status,
+            timestamp: new Date()
+        });
+
+        await delivery.save();
+        req.app.locals.broadcastDeliveryUpdate(delivery.trackingNumber, delivery);
+        res.json(delivery);
+    } catch (error) {
+        res.status(500).json({ message: 'Fehler beim Aktualisieren des Status', error: error.message });
     }
-
-    await delivery.addTrackingEvent(status, location, description);
-
-    // Wenn die Lieferung als geliefert markiert wird, setze actualDeliveryTime
-    if (status === 'delivered') {
-      delivery.actualDeliveryTime = new Date();
-    }
-
-    await delivery.save();
-    res.json(delivery);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
 };
 
-// Lieferung stornieren
 exports.cancelDelivery = async (req, res) => {
-  try {
-    const { trackingNumber } = req.params;
-    const { reason } = req.body;
+    try {
+        const delivery = await Delivery.findOne({ trackingNumber: req.params.trackingNumber });
 
-    const delivery = await Delivery.findOne({ trackingNumber });
-    if (!delivery) {
-      return res.status(404).json({ message: 'Lieferung nicht gefunden' });
+        if (!delivery) {
+            return res.status(404).json({ message: 'Lieferung nicht gefunden' });
+        }
+
+        delivery.status = 'cancelled';
+        delivery.trackingHistory.push({
+            status: 'cancelled',
+            timestamp: new Date()
+        });
+
+        await delivery.save();
+        req.app.locals.broadcastDeliveryUpdate(delivery.trackingNumber, delivery);
+        res.json(delivery);
+    } catch (error) {
+        res.status(500).json({ message: 'Fehler beim Stornieren der Lieferung', error: error.message });
     }
-
-    if (delivery.status === 'delivered') {
-      return res.status(400).json({ message: 'Gelieferte Sendungen können nicht storniert werden' });
-    }
-
-    await delivery.addTrackingEvent(
-      'cancelled',
-      delivery.currentLocation,
-      `Lieferung storniert: ${reason}`
-    );
-
-    res.json(delivery);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
 };
 
-// Lieferung zurücksenden
 exports.returnDelivery = async (req, res) => {
-  try {
-    const { trackingNumber } = req.params;
-    const { reason } = req.body;
+    try {
+        const delivery = await Delivery.findOne({ trackingNumber: req.params.trackingNumber });
 
-    const delivery = await Delivery.findOne({ trackingNumber });
-    if (!delivery) {
-      return res.status(404).json({ message: 'Lieferung nicht gefunden' });
+        if (!delivery) {
+            return res.status(404).json({ message: 'Lieferung nicht gefunden' });
+        }
+
+        delivery.status = 'returned';
+        delivery.trackingHistory.push({
+            status: 'returned',
+            timestamp: new Date()
+        });
+
+        await delivery.save();
+        req.app.locals.broadcastDeliveryUpdate(delivery.trackingNumber, delivery);
+        res.json(delivery);
+    } catch (error) {
+        res.status(500).json({ message: 'Fehler beim Zurücksenden der Lieferung', error: error.message });
     }
-
-    if (delivery.status !== 'delivered') {
-      return res.status(400).json({ message: 'Nur gelieferte Sendungen können zurückgesendet werden' });
-    }
-
-    await delivery.addTrackingEvent(
-      'returned',
-      delivery.currentLocation,
-      `Lieferung zurückgesendet: ${reason}`
-    );
-
-    res.json(delivery);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
 }; 

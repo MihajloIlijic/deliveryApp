@@ -69,7 +69,11 @@ const deliverySchema = new mongoose.Schema({
     },
     timestamp: { type: Date, default: Date.now },
     description: { type: String, required: true }
-  }]
+  }],
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
 }, {
   timestamps: true // Fügt createdAt und updatedAt Felder hinzu
 });

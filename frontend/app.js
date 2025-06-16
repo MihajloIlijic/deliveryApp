@@ -1,13 +1,54 @@
 // API Base URL
-const API_URL = 'http://localhost:3000';
+const API_BASE_URL = 'http://localhost:3000';
 const WS_URL = 'ws://localhost:3000';
 
-// WebSocket Verbindung
 let ws = null;
 let currentTrackingNumber = null;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_DELAY = 5000;
+
+// DOM Elements
+const authSection = document.getElementById('authSection');
+const mainContent = document.getElementById('mainContent');
+const userInfo = document.getElementById('userInfo');
+const userName = document.getElementById('userName');
+const logoutBtn = document.getElementById('logoutBtn');
+const loginForm = document.getElementById('loginForm');
+const registerForm = document.getElementById('registerForm');
+const trackingForm = document.getElementById('trackingForm');
+const createDeliveryForm = document.getElementById('createDeliveryForm');
+const deliveryDetails = document.getElementById('deliveryDetails');
+const statusSelect = document.getElementById('statusSelect');
+const updateStatusBtn = document.getElementById('updateStatusBtn');
+const cancelDeliveryBtn = document.getElementById('cancelDeliveryBtn');
+const returnDeliveryBtn = document.getElementById('returnDeliveryBtn');
+
+// Check authentication status on page load
+function checkAuth() {
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user'));
+    
+    if (token && user) {
+        showMainContent(user);
+    } else {
+        showAuthSection();
+    }
+}
+
+// Show/hide sections
+function showMainContent(user) {
+    authSection.style.display = 'none';
+    mainContent.style.display = 'block';
+    userInfo.style.display = 'flex';
+    userName.textContent = user.name;
+}
+
+function showAuthSection() {
+    authSection.style.display = 'block';
+    mainContent.style.display = 'none';
+    userInfo.style.display = 'none';
+}
 
 function connectWebSocket() {
     console.log('Starte WebSocket Verbindung...');
@@ -20,7 +61,7 @@ function connectWebSocket() {
 
     ws.onopen = () => {
         console.log('WebSocket verbunden');
-        reconnectAttempts = 0; // Reset reconnect attempts on successful connection
+        reconnectAttempts = 0;
         
         if (currentTrackingNumber) {
             console.log('Wiederverbindung: Abonniere aktuelle Lieferung:', currentTrackingNumber);
@@ -38,18 +79,7 @@ function connectWebSocket() {
                 console.log('Subscription bestätigt für:', data.trackingNumber);
             } else if (data.type === 'deliveryUpdate' && data.trackingNumber === currentTrackingNumber) {
                 console.log('Lieferungsupdate für aktuelle Lieferung empfangen');
-                // Aktualisiere die Anzeige mit den neuen Daten
-                fetch(`${API_URL}/deliveries/${data.trackingNumber}`)
-                    .then(response => response.json())
-                    .then(delivery => {
-                        console.log('Neue Lieferungsdaten empfangen:', delivery);
-                        displayDeliveryDetails(delivery);
-                    })
-                    .catch(error => {
-                        console.error('Fehler beim Aktualisieren der Lieferungsdetails:', error);
-                    });
-            } else {
-                console.log('Nachricht nicht für aktuelle Lieferung oder falscher Typ');
+                displayDeliveryDetails(data.delivery);
             }
         } catch (error) {
             console.error('Fehler beim Verarbeiten der WebSocket Nachricht:', error);
@@ -73,41 +103,170 @@ function connectWebSocket() {
     };
 }
 
-// Verbinde WebSocket
-connectWebSocket();
+function subscribeToDelivery(trackingNumber) {
+    console.log('Versuche Lieferung zu abonnieren:', trackingNumber);
+    console.log('WebSocket Status:', ws ? ws.readyState : 'nicht verbunden');
+    
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        const message = JSON.stringify({
+            type: 'subscribe',
+            trackingNumber
+        });
+        console.log('Sende Subscribe Nachricht:', message);
+        ws.send(message);
+        console.log('Subscribe Nachricht gesendet');
+    } else {
+        console.warn('WebSocket nicht verbunden, kann nicht abonnieren');
+    }
+}
 
-// DOM Elemente
-const trackingForm = document.getElementById('trackingForm');
-const createDeliveryForm = document.getElementById('createDeliveryForm');
-const deliveryDetails = document.getElementById('deliveryDetails');
+function unsubscribeFromDelivery(trackingNumber) {
+    console.log('Versuche Lieferung abzubestellen:', trackingNumber);
+    console.log('WebSocket Status:', ws ? ws.readyState : 'nicht verbunden');
+    
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        const message = JSON.stringify({
+            type: 'unsubscribe',
+            trackingNumber
+        });
+        console.log('Sende Unsubscribe Nachricht:', message);
+        ws.send(message);
+        console.log('Unsubscribe Nachricht gesendet');
+    } else {
+        console.warn('WebSocket nicht verbunden, kann nicht abbestellen');
+    }
+}
 
-// Tracking Form Handler
-trackingForm.addEventListener('submit', async (e) => {
+// Auth form handlers
+loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const trackingNumber = document.getElementById('trackingNumber').value;
-    currentTrackingNumber = trackingNumber;
-
+    const formData = new FormData(loginForm);
+    
     try {
-        const response = await fetch(`${API_URL}/deliveries/${trackingNumber}`);
-        if (!response.ok) {
-            throw new Error('Lieferung nicht gefunden');
+        const response = await fetch(`${API_BASE_URL}/auth/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email: formData.get('email'),
+                password: formData.get('password')
+            })
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+            showMainContent(data.user);
+        } else {
+            alert(data.message || 'Login fehlgeschlagen');
         }
-
-        const delivery = await response.json();
-        displayDeliveryDetails(delivery);
-
-        // Abonniere Updates für diese Lieferung
-        subscribeToDelivery(trackingNumber);
     } catch (error) {
-        alert(error.message);
+        console.error('Login error:', error);
+        alert('Ein Fehler ist aufgetreten');
     }
 });
 
-// Create Delivery Form Handler
+registerForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(registerForm);
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/register`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: formData.get('name'),
+                email: formData.get('email'),
+                password: formData.get('password')
+            })
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+            showMainContent(data.user);
+        } else {
+            alert(data.message || 'Registrierung fehlgeschlagen');
+        }
+    } catch (error) {
+        console.error('Registration error:', error);
+        alert('Ein Fehler ist aufgetreten');
+    }
+});
+
+// Logout handler
+logoutBtn.addEventListener('click', () => {
+    if (currentTrackingNumber) {
+        unsubscribeFromDelivery(currentTrackingNumber);
+    }
+    if (ws) {
+        ws.close();
+    }
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    showAuthSection();
+});
+
+// Auth tabs
+document.querySelectorAll('.auth-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        
+        if (tab.dataset.tab === 'login') {
+            loginForm.style.display = 'block';
+            registerForm.style.display = 'none';
+        } else {
+            loginForm.style.display = 'none';
+            registerForm.style.display = 'block';
+        }
+    });
+});
+
+// Tracking form handler
+trackingForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const trackingNumber = document.getElementById('trackingNumber').value;
+    
+    if (currentTrackingNumber && currentTrackingNumber !== trackingNumber) {
+        unsubscribeFromDelivery(currentTrackingNumber);
+    }
+    
+    currentTrackingNumber = trackingNumber;
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/deliveries/${trackingNumber}`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+            displayDeliveryDetails(data);
+            subscribeToDelivery(trackingNumber);
+        } else {
+            alert(data.message || 'Lieferung nicht gefunden');
+        }
+    } catch (error) {
+        console.error('Tracking error:', error);
+        alert('Ein Fehler ist aufgetreten');
+    }
+});
+
+// Create delivery form handler
 createDeliveryForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const formData = new FormData(createDeliveryForm);
     
-    const formData = new FormData(e.target);
     const deliveryData = {
         sender: {
             name: formData.get('senderName'),
@@ -134,194 +293,144 @@ createDeliveryForm.addEventListener('submit', async (e) => {
     };
 
     try {
-        const response = await fetch(`${API_URL}/deliveries`, {
+        const response = await fetch(`${API_BASE_URL}/deliveries`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
             },
             body: JSON.stringify(deliveryData)
         });
 
-        if (!response.ok) {
-            throw new Error('Fehler beim Erstellen der Lieferung');
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert(`Lieferung erstellt! Tracking-Nummer: ${data.trackingNumber}`);
+            createDeliveryForm.reset();
+            displayDeliveryDetails(data);
+            currentTrackingNumber = data.trackingNumber;
+            subscribeToDelivery(data.trackingNumber);
+        } else {
+            alert(data.message || 'Fehler beim Erstellen der Lieferung');
         }
-
-        const result = await response.json();
-        alert(`Lieferung erstellt! Tracking-Nummer: ${result.trackingNumber}`);
-        createDeliveryForm.reset();
     } catch (error) {
-        alert(error.message);
+        console.error('Create delivery error:', error);
+        alert('Ein Fehler ist aufgetreten');
     }
 });
 
-// Display Delivery Details
+// Display delivery details
 function displayDeliveryDetails(delivery) {
-    // Show delivery details section
     deliveryDetails.style.display = 'block';
-
+    
     // Update status
     document.getElementById('deliveryStatus').textContent = delivery.status;
-
+    statusSelect.value = delivery.status;
+    
     // Update sender details
     document.getElementById('senderName').textContent = delivery.sender.name;
     document.getElementById('senderAddress').textContent = delivery.sender.address;
     document.getElementById('senderPhone').textContent = delivery.sender.phone;
-
+    
     // Update recipient details
     document.getElementById('recipientName').textContent = delivery.recipient.name;
     document.getElementById('recipientAddress').textContent = delivery.recipient.address;
     document.getElementById('recipientPhone').textContent = delivery.recipient.phone;
-
+    
     // Update package details
     document.getElementById('packageWeight').textContent = `${delivery.package.weight} kg`;
     document.getElementById('packageDimensions').textContent = 
         `${delivery.package.dimensions.length}x${delivery.package.dimensions.width}x${delivery.package.dimensions.height} cm`;
     document.getElementById('packageDescription').textContent = delivery.package.description;
-
+    
     // Update tracking history
     const historyList = document.getElementById('trackingHistoryList');
     historyList.innerHTML = '';
-    delivery.trackingHistory.forEach(event => {
+    delivery.trackingHistory.forEach(entry => {
         const li = document.createElement('li');
-        li.textContent = `${new Date(event.timestamp).toLocaleString()} - ${event.status}: ${event.description}`;
+        li.textContent = `${new Date(entry.timestamp).toLocaleString()}: ${entry.status}`;
         historyList.appendChild(li);
     });
 }
 
-// Funktion zum Abonnieren von Lieferungs-Updates
-function subscribeToDelivery(trackingNumber) {
-    console.log('Versuche Lieferung zu abonnieren:', trackingNumber);
-    console.log('WebSocket Status:', ws ? ws.readyState : 'nicht verbunden');
-    
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        const message = JSON.stringify({
-            type: 'subscribe',
-            trackingNumber
-        });
-        console.log('Sende Subscribe Nachricht:', message);
-        ws.send(message);
-        console.log('Subscribe Nachricht gesendet');
-    } else {
-        console.warn('WebSocket nicht verbunden, kann nicht abonnieren');
-    }
-}
-
-// Funktion zum Abbestellen von Lieferungs-Updates
-function unsubscribeFromDelivery(trackingNumber) {
-    console.log('Versuche Lieferung abzubestellen:', trackingNumber);
-    console.log('WebSocket Status:', ws ? ws.readyState : 'nicht verbunden');
-    
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        const message = JSON.stringify({
-            type: 'unsubscribe',
-            trackingNumber
-        });
-        console.log('Sende Unsubscribe Nachricht:', message);
-        ws.send(message);
-        console.log('Unsubscribe Nachricht gesendet');
-    } else {
-        console.warn('WebSocket nicht verbunden, kann nicht abbestellen');
-    }
-}
-
-// Status aktualisieren
-document.getElementById('updateStatusBtn').addEventListener('click', async () => {
+// Status update handler
+updateStatusBtn.addEventListener('click', async () => {
     const trackingNumber = document.getElementById('trackingNumber').value;
-    const newStatus = document.getElementById('statusSelect').value;
+    const newStatus = statusSelect.value;
     
     try {
-        const response = await fetch(`${API_URL}/deliveries/${trackingNumber}/status`, {
-            method: 'PATCH',
+        const response = await fetch(`${API_BASE_URL}/deliveries/${trackingNumber}/status`, {
+            method: 'PUT',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
             },
-            body: JSON.stringify({
-                status: newStatus,
-                location: 'Aktuelle Position', // Standardwert
-                description: `Status wurde zu ${newStatus} geändert` // Standardwert
-            })
+            body: JSON.stringify({ status: newStatus })
         });
 
-        if (!response.ok) {
-            throw new Error('Fehler beim Aktualisieren des Status');
+        const data = await response.json();
+        
+        if (response.ok) {
+            displayDeliveryDetails(data);
+        } else {
+            alert(data.message || 'Fehler beim Aktualisieren des Status');
         }
-
-        const updatedDelivery = await response.json();
-        displayDeliveryDetails(updatedDelivery);
     } catch (error) {
-        alert(error.message);
+        console.error('Status update error:', error);
+        alert('Ein Fehler ist aufgetreten');
     }
 });
 
-// Lieferung stornieren
-document.getElementById('cancelDeliveryBtn').addEventListener('click', async () => {
-    if (!confirm('Möchten Sie diese Lieferung wirklich stornieren?')) {
-        return;
-    }
-
+// Cancel delivery handler
+cancelDeliveryBtn.addEventListener('click', async () => {
     const trackingNumber = document.getElementById('trackingNumber').value;
-    const reason = prompt('Bitte geben Sie den Grund für die Stornierung an:');
-    
-    if (!reason) {
-        alert('Stornierung abgebrochen: Kein Grund angegeben');
-        return;
-    }
     
     try {
-        const response = await fetch(`${API_URL}/deliveries/${trackingNumber}/cancel`, {
-            method: 'POST',
+        const response = await fetch(`${API_BASE_URL}/deliveries/${trackingNumber}/cancel`, {
+            method: 'PUT',
             headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ reason })
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
         });
 
-        if (!response.ok) {
-            throw new Error('Fehler beim Stornieren der Lieferung');
+        const data = await response.json();
+        
+        if (response.ok) {
+            displayDeliveryDetails(data);
+        } else {
+            alert(data.message || 'Fehler beim Stornieren der Lieferung');
         }
-
-        const updatedDelivery = await response.json();
-        displayDeliveryDetails(updatedDelivery);
     } catch (error) {
-        alert(error.message);
+        console.error('Cancel delivery error:', error);
+        alert('Ein Fehler ist aufgetreten');
     }
 });
 
-// Lieferung zurücksenden
-document.getElementById('returnDeliveryBtn').addEventListener('click', async () => {
-    if (!confirm('Möchten Sie diese Lieferung wirklich zurücksenden?')) {
-        return;
-    }
-
+// Return delivery handler
+returnDeliveryBtn.addEventListener('click', async () => {
     const trackingNumber = document.getElementById('trackingNumber').value;
-    const reason = prompt('Bitte geben Sie den Grund für die Rücksendung an:');
-    
-    if (!reason) {
-        alert('Rücksendung abgebrochen: Kein Grund angegeben');
-        return;
-    }
     
     try {
-        const response = await fetch(`${API_URL}/deliveries/${trackingNumber}/return`, {
-            method: 'POST',
+        const response = await fetch(`${API_BASE_URL}/deliveries/${trackingNumber}/return`, {
+            method: 'PUT',
             headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ reason })
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
         });
 
-        if (!response.ok) {
-            throw new Error('Fehler beim Zurücksenden der Lieferung');
+        const data = await response.json();
+        
+        if (response.ok) {
+            displayDeliveryDetails(data);
+        } else {
+            alert(data.message || 'Fehler beim Zurücksenden der Lieferung');
         }
-
-        const updatedDelivery = await response.json();
-        displayDeliveryDetails(updatedDelivery);
     } catch (error) {
-        alert(error.message);
+        console.error('Return delivery error:', error);
+        alert('Ein Fehler ist aufgetreten');
     }
 });
 
-// Cleanup beim Verlassen der Seite
 window.addEventListener('beforeunload', () => {
     if (currentTrackingNumber) {
         unsubscribeFromDelivery(currentTrackingNumber);
@@ -329,4 +438,8 @@ window.addEventListener('beforeunload', () => {
     if (ws) {
         ws.close();
     }
-}); 
+});
+
+// Check auth status on page load
+connectWebSocket();
+checkAuth(); 

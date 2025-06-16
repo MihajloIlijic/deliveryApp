@@ -1,23 +1,24 @@
 const express = require('express');
 const router = express.Router();
 const deliveryController = require('../controllers/deliveryController');
+const auth = require('../middleware/auth');
 
 // Alle Lieferungen abrufen
 router.get('/', deliveryController.getAllDeliveries);
 
 // Neue Lieferung erstellen
-router.post('/', deliveryController.createDelivery);
+router.post('/', auth, deliveryController.createDelivery);
 
 // Einzelne Lieferung abrufen
-router.get('/:trackingNumber', deliveryController.getDeliveryByTrackingNumber);
+router.get('/:trackingNumber', auth, deliveryController.getDelivery);
 
 // Lieferungsstatus aktualisieren
-router.patch('/:trackingNumber/status', deliveryController.updateDeliveryStatus);
+router.put('/:trackingNumber/status', auth, deliveryController.updateDeliveryStatus);
 
 // Lieferung stornieren
-router.post('/:trackingNumber/cancel', deliveryController.cancelDelivery);
+router.put('/:trackingNumber/cancel', auth, deliveryController.cancelDelivery);
 
 // Lieferung zurücksenden
-router.post('/:trackingNumber/return', deliveryController.returnDelivery);
+router.put('/:trackingNumber/return', auth, deliveryController.returnDelivery);
 
 module.exports = router; 

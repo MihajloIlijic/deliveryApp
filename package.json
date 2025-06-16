@@ -25,11 +25,14 @@
   },
   "homepage": "https://github.com/MihajloIlijic/deliveryApp#readme",
   "dependencies": {
+    "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.0.3",
     "socket.io": "^4.6.1",
-    "websocket": "^1.0.35"
+    "websocket": "^1.0.35",
+    "ws": "^8.18.2"
   }
 }

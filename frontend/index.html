@@ -5,15 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Delivery Tracking</title>
     <link rel="stylesheet" href="styles.css">
-    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
 </head>
 <body>
     <div class="container">
         <header>
             <h1>Delivery Tracking System</h1>
+            <div id="userInfo" style="display: none;">
+                <span id="userName"></span>
+                <button id="logoutBtn">Logout</button>
+            </div>
         </header>
 
-        <main>
+        <!-- Login/Register Form -->
+        <section id="authSection" class="auth-section">
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">Login</button>
+                <button class="auth-tab" data-tab="register">Registrieren</button>
+            </div>
+
+            <form id="loginForm" class="auth-form">
+                <h2>Login</h2>
+                <input type="email" name="email" placeholder="E-Mail" required>
+                <input type="password" name="password" placeholder="Passwort" required>
+                <button type="submit">Einloggen</button>
+            </form>
+
+            <form id="registerForm" class="auth-form" style="display: none;">
+                <h2>Registrieren</h2>
+                <input type="text" name="name" placeholder="Name" required>
+                <input type="email" name="email" placeholder="E-Mail" required>
+                <input type="password" name="password" placeholder="Passwort" required>
+                <button type="submit">Registrieren</button>
+            </form>
+        </section>
+
+        <main id="mainContent" style="display: none;">
             <!-- Tracking Form -->
             <section class="tracking-section">
                 <h2>Lieferung verfolgen</h2>
