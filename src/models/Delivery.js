@@ -8,8 +8,8 @@ const deliverySchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['sent', 'picked_up', 'delivered', 'unknown', 'cancelled', 'returned'],
-    default: 'sent'
+    enum: ['pending', 'sent', 'picked_up', 'delivered', 'unknown', 'cancelled', 'returned'],
+    default: 'pending'
   },
   sender: {
     name: String,
@@ -43,7 +43,7 @@ deliverySchema.index({ currentLocation: '2dsphere' });
 
 // Methode zum Hinzufügen eines Tracking-Events
 deliverySchema.methods.addTrackingEvent = function(status, location, description) {
-  if (!['sent', 'picked_up', 'delivered', 'unknown', 'cancelled', 'returned'].includes(status)) {
+  if (!['pending', 'sent', 'picked_up', 'delivered', 'unknown', 'cancelled', 'returned'].includes(status)) {
     throw new Error(`Invalid status: ${status}`);
   }
   

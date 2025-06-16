@@ -13,12 +13,13 @@ router.post('/', auth, deliveryController.createDelivery);
 router.get('/:trackingNumber', auth, deliveryController.getDelivery);
 
 // Lieferungsstatus aktualisieren
-router.put('/:trackingNumber/status', auth, deliveryController.updateDeliveryStatus);
+router.patch('/:id', auth, deliveryController.updateDelivery);
+router.patch('/:trackingNumber/status', auth, deliveryController.updateDeliveryStatus);
 
 // Lieferung stornieren
-router.put('/:trackingNumber/cancel', auth, deliveryController.cancelDelivery);
+router.post('/:trackingNumber/cancel', auth, deliveryController.cancelDelivery);
 
 // Lieferung zurücksenden
-router.put('/:trackingNumber/return', auth, deliveryController.returnDelivery);
+router.post('/:trackingNumber/return', auth, deliveryController.returnDelivery);
 
 module.exports = router; 

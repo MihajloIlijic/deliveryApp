@@ -109,4 +109,39 @@ exports.returnDelivery = async (req, res) => {
     } catch (error) {
         res.status(400).json({ message: error.message });
     }
+};
+
+exports.updateDelivery = async (req, res) => {
+    try {
+        const delivery = await Delivery.findById(req.params.id);
+        if (!delivery) {
+            return res.status(404).json({ message: 'Sendung nicht gefunden' });
+        }
+
+        // Update only the fields that are provided
+        if (req.body.sender) {
+            delivery.sender = { ...delivery.sender, ...req.body.sender };
+        }
+        if (req.body.recipient) {
+            delivery.recipient = { ...delivery.recipient, ...req.body.recipient };
+        }
+        if (req.body.package) {
+            delivery.package = { ...delivery.package, ...req.body.package };
+        }
+        if (req.body.status) {
+            delivery.status = req.body.status;
+            delivery.trackingHistory.push({
+                status: req.body.status,
+                location: req.body.location || 'Unbekannt',
+                description: req.body.description || 'Status aktualisiert'
+            });
+        }
+
+        await delivery.save();
+        req.app.locals.broadcastDeliveryUpdate(delivery.trackingNumber, delivery);
+        res.json(delivery);
+    } catch (error) {
+        console.error('Update error:', error);
+        res.status(400).json({ message: error.message });
+    }
 }; 
