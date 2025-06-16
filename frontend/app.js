@@ -242,13 +242,26 @@ trackingForm.addEventListener('submit', async (e) => {
     currentTrackingNumber = trackingNumber;
     
     try {
+        const token = localStorage.getItem('token');
+        console.log('Token aus localStorage:', token);
+        
+        if (!token) {
+            console.log('Kein Token gefunden');
+            alert('Bitte melden Sie sich an, um Lieferungen zu verfolgen');
+            showAuthSection();
+            return;
+        }
+
+        console.log('Sende Request mit Token:', `Bearer ${token}`);
         const response = await fetch(`${API_BASE_URL}/deliveries/${trackingNumber}`, {
             headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                'Authorization': `Bearer ${token}`
             }
         });
 
+        console.log('Response Status:', response.status);
         const data = await response.json();
+        console.log('Response Data:', data);
         
         if (response.ok) {
             displayDeliveryDetails(data);

@@ -12,63 +12,23 @@ const deliverySchema = new mongoose.Schema({
     default: 'sent'
   },
   sender: {
-    name: { type: String, required: true },
-    address: { type: String, required: true },
-    phone: { type: String, required: true },
-    email: { type: String, required: true }
+    name: String,
+    address: String,
+    contact: String
   },
   recipient: {
-    name: { type: String, required: true },
-    address: { type: String, required: true },
-    phone: { type: String, required: true },
-    email: { type: String, required: true }
-  },
-  package: {
-    weight: { type: Number, required: true },
-    dimensions: {
-      length: { type: Number, required: true },
-      width: { type: Number, required: true },
-      height: { type: Number, required: true }
-    },
-    description: { type: String, required: true }
-  },
-  currentLocation: {
-    type: {
-      type: String,
-      enum: ['Point'],
-      default: 'Point'
-    },
-    coordinates: {
-      type: [Number], // [longitude, latitude]
-      default: [0, 0]
-    }
-  },
-  estimatedDeliveryTime: {
-    type: Date,
-    required: true
-  },
-  actualDeliveryTime: {
-    type: Date
+    name: String,
+    address: String,
+    contact: String
   },
   trackingHistory: [{
-    status: { 
-      type: String, 
-      required: true,
-      enum: ['sent', 'picked_up', 'delivered', 'unknown', 'cancelled', 'returned']
+    status: String,
+    timestamp: {
+      type: Date,
+      default: Date.now
     },
-    location: {
-      type: {
-        type: String,
-        enum: ['Point'],
-        default: 'Point'
-      },
-      coordinates: {
-        type: [Number],
-        default: [0, 0]
-      }
-    },
-    timestamp: { type: Date, default: Date.now },
-    description: { type: String, required: true }
+    location: String,
+    description: String
   }],
   createdAt: {
     type: Date,
