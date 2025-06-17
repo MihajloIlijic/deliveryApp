@@ -17,9 +17,9 @@ router.patch('/:id', auth, deliveryController.updateDelivery);
 router.patch('/:trackingNumber/status', auth, deliveryController.updateDeliveryStatus);
 
 // Lieferung stornieren
-router.post('/:trackingNumber/cancel', auth, deliveryController.cancelDelivery);
+router.put('/:trackingNumber/cancel', auth, deliveryController.cancelDelivery);
 
 // Lieferung zurücksenden
-router.post('/:trackingNumber/return', auth, deliveryController.returnDelivery);
+router.put('/:trackingNumber/return', auth, deliveryController.returnDelivery);
 
 module.exports = router; 

@@ -50,8 +50,15 @@ function showAuthSection() {
     userInfo.style.display = 'none';
 }
 
+// WebSocket connection handling
 function connectWebSocket() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        console.log('WebSocket bereits verbunden');
+        return;
+    }
+
     console.log('Starte WebSocket Verbindung...');
+    
     if (ws) {
         console.log('Bestehende Verbindung wird geschlossen');
         ws.close();
@@ -62,7 +69,6 @@ function connectWebSocket() {
     ws.onopen = () => {
         console.log('WebSocket verbunden');
         reconnectAttempts = 0;
-        
         if (currentTrackingNumber) {
             console.log('Wiederverbindung: Abonniere aktuelle Lieferung:', currentTrackingNumber);
             subscribeToDelivery(currentTrackingNumber);
@@ -71,69 +77,77 @@ function connectWebSocket() {
 
     ws.onmessage = (event) => {
         console.log('WebSocket Nachricht empfangen:', event.data);
-        try {
-            const data = JSON.parse(event.data);
-            console.log('Parsed Nachricht:', data);
-            
-            if (data.type === 'subscriptionConfirmed') {
-                console.log('Subscription bestätigt für:', data.trackingNumber);
-            } else if (data.type === 'deliveryUpdate' && data.trackingNumber === currentTrackingNumber) {
-                console.log('Lieferungsupdate für aktuelle Lieferung empfangen');
-                displayDeliveryDetails(data.delivery);
-            }
-        } catch (error) {
-            console.error('Fehler beim Verarbeiten der WebSocket Nachricht:', error);
+        const message = JSON.parse(event.data);
+        console.log('Parsed Nachricht:', message);
+
+        if (message.type === 'subscriptionConfirmed') {
+            console.log('Subscription bestätigt für:', message.trackingNumber);
+        } else if (message.type === 'deliveryUpdate' && message.trackingNumber === currentTrackingNumber) {
+            console.log('Lieferungsupdate für aktuelle Lieferung empfangen');
+            displayDeliveryDetails(message.delivery);
+        }
+    };
+
+    ws.onclose = (event) => {
+        console.log('WebSocket Verbindung geschlossen', event.code, event.reason);
+        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+            reconnectAttempts++;
+            console.log(`Versuche in ${RECONNECT_DELAY/1000} Sekunden erneut zu verbinden (Versuch ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+            setTimeout(connectWebSocket, RECONNECT_DELAY);
+        } else {
+            console.log('Maximale Anzahl an Wiederverbindungsversuchen erreicht');
+            alert('Die Verbindung zum Server konnte nicht hergestellt werden. Bitte laden Sie die Seite neu.');
         }
     };
 
     ws.onerror = (error) => {
         console.error('WebSocket Fehler:', error);
     };
-
-    ws.onclose = () => {
-        console.log('WebSocket Verbindung geschlossen');
-        
-        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-            reconnectAttempts++;
-            console.log(`Versuche in ${RECONNECT_DELAY/1000} Sekunden erneut zu verbinden (Versuch ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
-            setTimeout(connectWebSocket, RECONNECT_DELAY);
-        } else {
-            console.error('Maximale Anzahl an Verbindungsversuchen erreicht');
-        }
-    };
 }
 
+// Initialize WebSocket connection
+connectWebSocket();
+
+// Subscribe to delivery updates
 function subscribeToDelivery(trackingNumber) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        console.log('WebSocket nicht verbunden, verbinde neu...');
+        connectWebSocket();
+        return;
+    }
+
     console.log('Versuche Lieferung zu abonnieren:', trackingNumber);
-    console.log('WebSocket Status:', ws ? ws.readyState : 'nicht verbunden');
-    
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        const message = JSON.stringify({
-            type: 'subscribe',
-            trackingNumber
-        });
-        console.log('Sende Subscribe Nachricht:', message);
-        ws.send(message);
+    console.log('WebSocket Status:', ws.readyState);
+
+    const subscribeMessage = {
+        type: 'subscribe',
+        trackingNumber: trackingNumber
+    };
+
+    try {
+        console.log('Sende Subscribe Nachricht:', JSON.stringify(subscribeMessage));
+        ws.send(JSON.stringify(subscribeMessage));
         console.log('Subscribe Nachricht gesendet');
-    } else {
-        console.warn('WebSocket nicht verbunden, kann nicht abonnieren');
+    } catch (error) {
+        console.error('Fehler beim Senden der Subscribe Nachricht:', error);
+        connectWebSocket();
     }
 }
 
+// Unsubscribe from delivery updates
 function unsubscribeFromDelivery(trackingNumber) {
-    console.log('Versuche Lieferung abzubestellen:', trackingNumber);
-    console.log('WebSocket Status:', ws ? ws.readyState : 'nicht verbunden');
-    
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        const message = JSON.stringify({
-            type: 'unsubscribe',
-            trackingNumber
-        });
-        console.log('Sende Unsubscribe Nachricht:', message);
-        ws.send(message);
-        console.log('Unsubscribe Nachricht gesendet');
-    } else {
-        console.warn('WebSocket nicht verbunden, kann nicht abbestellen');
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+    const unsubscribeMessage = {
+        type: 'unsubscribe',
+        trackingNumber: trackingNumber
+    };
+
+    try {
+        ws.send(JSON.stringify(unsubscribeMessage));
+        console.log('Unsubscribe Nachricht gesendet für:', trackingNumber);
+    } catch (error) {
+        console.error('Fehler beim Senden der Unsubscribe Nachricht:', error);
     }
 }
 
@@ -373,7 +387,7 @@ updateStatusBtn.addEventListener('click', async () => {
     
     try {
         const response = await fetch(`${API_BASE_URL}/deliveries/${trackingNumber}/status`, {
-            method: 'PUT',
+            method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -454,5 +468,4 @@ window.addEventListener('beforeunload', () => {
 });
 
 // Check auth status on page load
-connectWebSocket();
 checkAuth(); 

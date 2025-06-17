@@ -12,14 +12,33 @@ const deliverySchema = new mongoose.Schema({
     default: 'pending'
   },
   sender: {
-    name: String,
-    address: String,
-    contact: String
+    name: { type: String, required: true },
+    address: { type: String, required: true },
+    phone: { type: String, required: true },
+    email: { type: String, required: true }
   },
   recipient: {
-    name: String,
-    address: String,
-    contact: String
+    name: { type: String, required: true },
+    address: { type: String, required: true },
+    phone: { type: String, required: true },
+    email: { type: String, required: true }
+  },
+  package: {
+    weight: { type: Number, required: true },
+    dimensions: {
+      length: { type: Number, required: true },
+      width: { type: Number, required: true },
+      height: { type: Number, required: true }
+    },
+    description: { type: String, required: true }
+  },
+  estimatedDeliveryTime: {
+    type: Date,
+    required: true
+  },
+  currentLocation: {
+    type: { type: String, default: 'Point' },
+    coordinates: { type: [Number], default: [0, 0] }
   },
   trackingHistory: [{
     status: String,
